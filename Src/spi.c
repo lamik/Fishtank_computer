@@ -129,7 +129,16 @@ void HAL_SPI_MspDeInit(SPI_HandleTypeDef* spiHandle)
 } 
 
 /* USER CODE BEGIN 1 */
+void MX_SPI1_SpeedUp(void)
+{
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
 
+  if (HAL_SPI_Init(&hspi1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+}
 /* USER CODE END 1 */
 
 /**
