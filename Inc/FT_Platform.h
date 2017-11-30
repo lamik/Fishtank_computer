@@ -2,7 +2,7 @@
 #define _FT_PLATFORM_H_
 
 #include "main.h"
-#include "stm32f4xx_hal.h"
+#include "stm32f1xx_hal.h"
 #include "spi.h"
 #include "gpio.h"
 
