@@ -43,14 +43,26 @@
 #include "gpio.h"
 
 /* USER CODE BEGIN Includes */
-
+#include "FT_Platform.h"
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
+Ft_Gpu_Hal_Context_t host;
 
+ft_char8_t StringArray[20];
+
+void(* menu_actual)(void);
+uint16_t touch_tag = 0;
+uint16_t x_data[] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20};
+uint16_t y_data[] = {10,43,38,32,28,22,30,31,32,33,10,15,18,13,17,20,24,35,28,29,50};
+uint32_t track_data = 0;
+uint16_t value = 50;
+uint16_t value2 = 230;
+uint8_t brightness = 128;
+char bufor[60];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -58,7 +70,10 @@ void SystemClock_Config(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
-
+int32_t map(int32_t value, int32_t inMin, int32_t inMax, int32_t outMin, int32_t outMax);
+void test_screen(void);
+void menu1(void);
+void menu2(void);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
@@ -94,7 +109,12 @@ int main(void)
   MX_SPI1_Init();
 
   /* USER CODE BEGIN 2 */
+  Ft_Gpu_Hal_Init_43CTP(&host);
+	MX_SPI1_SpeedUp();	//Speed-up SPI for FT800
 
+	HAL_Delay(100);
+	Ft_Gpu_CoCmd_Track(&host, 50, 240, 400, 20, 10);
+	menu_actual = menu1;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -104,6 +124,7 @@ int main(void)
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
+	  menu_actual();
 
   }
   /* USER CODE END 3 */
@@ -168,6 +189,182 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 
+int32_t map(int32_t value, int32_t inMin, int32_t inMax, int32_t outMin, int32_t outMax)
+{
+	return (value - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
+}
+
+
+unsigned int incCMDOffset(unsigned int currentOffset, unsigned char commandSize)
+{
+    unsigned int newOffset;															// Used to hold new offset
+    newOffset = currentOffset + commandSize;						// Calculate new offset
+    if(newOffset > 4095)																// If new offset past boundary...
+    {
+        newOffset = (newOffset - 4096);									// ... roll over pointer
+    }
+    return newOffset;																		// Return new offset
+}
+
+void menu1()
+{
+	Ft_Gpu_CoCmd_Dlstart(&host);
+
+			/*Setting first screen*/
+			Ft_App_WrCoCmd_Buffer(&host,CLEAR_COLOR_RGB(0xff,0xff,0xff));//white color
+			Ft_App_WrCoCmd_Buffer(&host,CLEAR(1,1,1));//clear screen
+
+			track_data = Ft_Gpu_Hal_Rd32(&host, REG_TRACKER);
+			if((track_data & 0xff) == 10)
+				value = (track_data >> 16);
+
+
+			Ft_App_WrCoCmd_Buffer(&host,COLOR_RGB(0xF0,0xFF,0x20));//red color
+			Ft_Gpu_CoCmd_FgColor(&host, COLOR_RGB(0x00, 0x06, 0x70));
+			Ft_App_WrCoCmd_Buffer(&host,TAG(10));
+			Ft_Gpu_CoCmd_Slider(&host, 50, 240, 400, 20, 0, value, 0xFFFFFF);
+
+			Ft_App_WrCoCmd_Buffer(&host,COLOR_RGB(0x01,0x00,0x00));
+			sprintf(bufor, "ID: %u", track_data & 0xFF);
+			Ft_Gpu_CoCmd_Text(&host, 10, 180, 28, 0, bufor);
+			sprintf(bufor, "Val: %u", value);
+			Ft_Gpu_CoCmd_Text(&host, 10, 200, 28, 0, bufor);
+
+
+			// BUTTON TEST
+			Ft_App_WrCoCmd_Buffer(&host,TAG(11));
+			Ft_App_WrCoCmd_Buffer(&host,COLOR_RGB(0xFF,0xFF,0xFF));
+			Ft_Gpu_CoCmd_GradColor(&host, COLOR_RGB(0xFF, 0xFF, 0xFF));
+			Ft_Gpu_CoCmd_FgColor(&host, COLOR_RGB(0x00, 0x70, 0x12));
+			Ft_Gpu_CoCmd_Button(&host, 31,10, 160,60, 27,0, "Menu1");
+
+			Ft_App_WrCoCmd_Buffer(&host,TAG(12));
+			Ft_Gpu_CoCmd_GradColor(&host, COLOR_RGB(0xFF, 0xFF, 0xFF));
+			Ft_Gpu_CoCmd_FgColor(&host, COLOR_RGB(0x70, 0x41, 0x00));
+			Ft_Gpu_CoCmd_Button(&host, 275,10, 160,60, 27,0, "Brightness");
+			//
+
+			touch_tag = Ft_Gpu_Hal_Rd8(&host,REG_TOUCH_TAG);
+			if(touch_tag == 11)
+			{
+				Ft_App_WrCoCmd_Buffer(&host,COLOR_RGB(0x00,0x80,0x00));
+				Ft_Gpu_CoCmd_Text(&host,(LCD_WIDTH/2), LCD_HEIGHT*2/5, 28, OPT_CENTERX, "Tu jesteœ");
+			}
+
+			if(touch_tag == 12)
+			{
+				menu_actual = menu2;
+				Ft_Gpu_CoCmd_Track(&host, 50, 240, 400, 20, 9);
+				Ft_Gpu_CoCmd_Track(&host, 50, 240, 0, 0, 10);
+				while(touch_tag == 12)touch_tag = Ft_Gpu_Hal_Rd8(&host,REG_TOUCH_TAG);;
+			}
+
+			Ft_App_WrCoCmd_Buffer(&host,DISPLAY());
+			Ft_Gpu_CoCmd_Swap(&host);
+			/* Download the commands into fifo */
+			Ft_App_Flush_Co_Buffer(&host);
+
+			/* Wait till coprocessor completes the operation */
+			Ft_Gpu_Hal_WaitCmdfifo_empty(&host);
+}
+
+void menu2()
+{
+	Ft_Gpu_CoCmd_Dlstart(&host);
+
+			/*Setting first screen*/
+			Ft_App_WrCoCmd_Buffer(&host,CLEAR_COLOR_RGB(0xff,0xff,0xff));//white color
+			Ft_App_WrCoCmd_Buffer(&host,CLEAR(1,1,1));//clear screen
+
+			track_data = Ft_Gpu_Hal_Rd32(&host, REG_TRACKER);
+			if((track_data & 0xff) == 9)
+			{
+				value2 = (track_data >> 16);
+				brightness = map(value2, 0, 65535, 1, 128);
+				Ft_Gpu_Hal_Wr32(&host, REG_PWM_DUTY, brightness);
+			}
+
+			Ft_App_WrCoCmd_Buffer(&host,COLOR_RGB(0xF0,0xFF,0x20));//red color
+			Ft_Gpu_CoCmd_FgColor(&host, COLOR_RGB(0x00, 0x76, 0x70));
+			Ft_App_WrCoCmd_Buffer(&host,TAG(9));
+			Ft_Gpu_CoCmd_Slider(&host, 50, 240, 400, 20, 0, brightness, 128);
+
+			Ft_App_WrCoCmd_Buffer(&host,COLOR_RGB(0x01,0x00,0x00));
+			sprintf(bufor, "ID: %u", track_data & 0xFF);
+			Ft_Gpu_CoCmd_Text(&host, 10, 180, 28, 0, bufor);
+			sprintf(bufor, "Val: %u", value2);
+			Ft_Gpu_CoCmd_Text(&host, 10, 200, 28, 0, bufor);
+			sprintf(bufor, "Brightness: %u", brightness);
+			Ft_Gpu_CoCmd_Text(&host, 10, 160, 28, 0, bufor);
+
+			// BUTTON TEST
+			Ft_App_WrCoCmd_Buffer(&host,TAG(11));
+			Ft_App_WrCoCmd_Buffer(&host,COLOR_RGB(0xFF,0xFF,0xFF));
+			Ft_Gpu_CoCmd_GradColor(&host, COLOR_RGB(0xFF, 0xFF, 0xFF));
+			Ft_Gpu_CoCmd_FgColor(&host, COLOR_RGB(0x70, 0x41, 0x00));
+			Ft_Gpu_CoCmd_Button(&host, 31,10, 160,60, 27,0, "Menu1");
+
+			Ft_App_WrCoCmd_Buffer(&host,TAG(12));
+			Ft_Gpu_CoCmd_GradColor(&host, COLOR_RGB(0xFF, 0xFF, 0xFF));
+			Ft_Gpu_CoCmd_FgColor(&host, COLOR_RGB(0x00, 0x70, 0x12));
+			Ft_Gpu_CoCmd_Button(&host, 275,10, 160,60, 27,0, "Brightness");
+			//
+
+			touch_tag = Ft_Gpu_Hal_Rd8(&host,REG_TOUCH_TAG);
+			if(touch_tag == 11)
+			{
+				menu_actual = menu1;
+				Ft_Gpu_CoCmd_Track(&host, 50, 240, 400, 20, 10);
+				Ft_Gpu_CoCmd_Track(&host, 50, 240, 0, 0, 9);
+				while(touch_tag == 11)touch_tag = Ft_Gpu_Hal_Rd8(&host,REG_TOUCH_TAG);;
+			}
+
+			if(touch_tag == 12)
+			{
+				Ft_App_WrCoCmd_Buffer(&host,COLOR_RGB(0x00,0x80,0x00));
+				Ft_Gpu_CoCmd_Text(&host,(LCD_WIDTH/2), LCD_HEIGHT*2/5, 28, OPT_CENTERX, "Tu jesteœ");
+			}
+
+			Ft_App_WrCoCmd_Buffer(&host,DISPLAY());
+			Ft_Gpu_CoCmd_Swap(&host);
+			/* Download the commands into fifo */
+			Ft_App_Flush_Co_Buffer(&host);
+
+			/* Wait till coprocessor completes the operation */
+			Ft_Gpu_Hal_WaitCmdfifo_empty(&host);
+}
+
+void test_screen(void)
+{
+	uint8_t touch_tag = 0;
+
+	Ft_Gpu_CoCmd_Dlstart(&host);
+	/*Setting first screen*/
+	Ft_App_WrCoCmd_Buffer(&host,CLEAR_COLOR_RGB(0xff,0xff,0xff));//white color
+	Ft_App_WrCoCmd_Buffer(&host,CLEAR(1,1,1));//clear screen
+
+	Ft_App_WrCoCmd_Buffer(&host,COLOR_RGB(0x80,0x00,0x00));//red color
+	Ft_Gpu_CoCmd_Text(&host,(LCD_WIDTH/2), LCD_HEIGHT/5, 28, OPT_CENTERX, "Touch test");
+
+	Ft_App_WrCoCmd_Buffer(&host,COLOR_RGB(0xff,0xff,0xff));
+	Ft_App_WrCoCmd_Buffer(&host,TAG(249));
+	Ft_Gpu_CoCmd_Button(&host,LCD_WIDTH/2-50,LCD_HEIGHT/5*4,100,50,20,0, "Push me");
+
+	touch_tag = Ft_Gpu_Hal_Rd8(&host,REG_TOUCH_TAG);
+	if(touch_tag == 249)
+	{
+		Ft_App_WrCoCmd_Buffer(&host,COLOR_RGB(0x00,0x80,0x00));
+		Ft_Gpu_CoCmd_Text(&host,(LCD_WIDTH/2), LCD_HEIGHT*2/5, 28, OPT_CENTERX, "TOUCHED");
+	}
+
+	Ft_App_WrCoCmd_Buffer(&host,DISPLAY());
+	Ft_Gpu_CoCmd_Swap(&host);
+	/* Download the commands into fifo */
+	Ft_App_Flush_Co_Buffer(&host);
+
+	/* Wait till coprocessor completes the operation */
+	Ft_Gpu_Hal_WaitCmdfifo_empty(&host);
+}
 /* USER CODE END 4 */
 
 /**

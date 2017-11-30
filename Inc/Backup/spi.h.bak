@@ -62,7 +62,7 @@ extern void _Error_Handler(char *, int);
 void MX_SPI1_Init(void);
 
 /* USER CODE BEGIN Prototypes */
-
+void MX_SPI1_SpeedUp(void);
 /* USER CODE END Prototypes */
 
 #ifdef __cplusplus

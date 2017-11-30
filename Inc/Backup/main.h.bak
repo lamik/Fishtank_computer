@@ -50,6 +50,8 @@
 #define FT800_CS_GPIO_Port GPIOB
 #define FT800_INT_Pin GPIO_PIN_1
 #define FT800_INT_GPIO_Port GPIOB
+#define FT800_PD_Pin GPIO_PIN_10
+#define FT800_PD_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 

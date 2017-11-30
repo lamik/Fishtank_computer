@@ -38,8 +38,10 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f1xx_hal.h"
+#include "crc.h"
 #include "rtc.h"
 #include "spi.h"
+#include "tim.h"
 #include "gpio.h"
 
 /* USER CODE BEGIN Includes */
@@ -107,6 +109,8 @@ int main(void)
   MX_GPIO_Init();
   MX_RTC_Init();
   MX_SPI1_Init();
+  MX_CRC_Init();
+  MX_TIM3_Init();
 
   /* USER CODE BEGIN 2 */
   Ft_Gpu_Hal_Init_43CTP(&host);
