@@ -344,10 +344,10 @@ void menu2()
 			sprintf(bufor, "Brightness: %u", brightness);
 			Ft_Gpu_CoCmd_Text(&host, 10, 160, 28, 0, bufor);
 
-			sprintf(bufor, "Dystans: %.2f cm", distance);
+			sprintf(bufor, "Dystans: %.1f cm", distance);
 			Ft_Gpu_CoCmd_Text(&host, 10, 120, 28, 0, bufor);
 
-			sprintf(bufor, "Temperatura: %.3f *C", temperature);
+			sprintf(bufor, "Temperatura: %.1f *C", temperature);
 			Ft_Gpu_CoCmd_Text(&host, 10, 100, 28, 0, bufor);
 
 			// BUTTON TEST
