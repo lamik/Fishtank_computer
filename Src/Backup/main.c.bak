@@ -70,7 +70,9 @@ char bufor[60];
 
 OneWire_t OW;
 uint8_t DS_ROM[8];
-float temp;
+float temperature;
+
+float distance;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -128,16 +130,20 @@ int main(void)
 // OneWire configuration
 
 	OneWire_Init(&OW, DS18B20_GPIO_Port, DS18B20_Pin);
-	if (OneWire_First(&OW));
-//		OneWire_GetFullROM(&OW, DS_ROM);
-//	if (DS18B20_Is(DS_ROM))
-//	{
-//		/* Set resolution */
-//		DS18B20_SetResolution(&OW, DS_ROM, DS18B20_Resolution_12bits);
-//
-//		/* Start conversion on all sensors */
-//		DS18B20_StartAll(&OW);
-//	}
+
+	if (OneWire_First(&OW))
+		OneWire_GetFullROM(&OW, DS_ROM);
+	if (DS18B20_Is(DS_ROM))
+	{
+		/* Set resolution */
+		DS18B20_SetResolution(&OW, DS_ROM, DS18B20_Resolution_12bits);
+
+		/* Start conversion on all sensors */
+		DS18B20_StartAll(&OW);
+	}
+
+// HCSR04 init
+	HCSR04_Init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -153,7 +159,7 @@ int main(void)
 			/* Everything is done */
 			if (DS18B20_AllDone(&OW)) {
 				/* Read temperature from device */
-				if (DS18B20_Read(&OW, DS_ROM, &temp)) {
+				if (DS18B20_Read(&OW, DS_ROM, &temperature)) {
 					/* Temp read OK, CRC is OK */
 
 					/* Start again on all sensors */
@@ -161,6 +167,8 @@ int main(void)
 				}
 			}
 		}
+
+		distance = HCSR04_Read();
 
 	  menu_actual();
 
@@ -335,7 +343,11 @@ void menu2()
 			sprintf(bufor, "Brightness: %u", brightness);
 			Ft_Gpu_CoCmd_Text(&host, 10, 160, 28, 0, bufor);
 
-			sprintf(bufor, "Temperatura: %.2f *C", temp);
+
+			sprintf(bufor, "Dystans: %.2f cm", distance);
+			Ft_Gpu_CoCmd_Text(&host, 10, 120, 28, 0, bufor);
+
+			sprintf(bufor, "Temperatura: %.3f *C", temperature);
 			Ft_Gpu_CoCmd_Text(&host, 10, 100, 28, 0, bufor);
 
 			// BUTTON TEST

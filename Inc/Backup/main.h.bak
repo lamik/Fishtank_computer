@@ -54,6 +54,10 @@
 #define FT800_PD_GPIO_Port GPIOB
 #define DS18B20_Pin GPIO_PIN_11
 #define DS18B20_GPIO_Port GPIOB
+#define HCSR04_Echo_Pin GPIO_PIN_4
+#define HCSR04_Echo_GPIO_Port GPIOB
+#define HCSR04_Trig_Pin GPIO_PIN_9
+#define HCSR04_Trig_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 

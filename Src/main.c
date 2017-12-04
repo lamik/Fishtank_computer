@@ -48,6 +48,7 @@
 #include "FT_Platform.h"
 #include "onewire.h"
 #include "ds18b20.h"
+#include "hcsr04.h"
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
@@ -71,6 +72,8 @@ char bufor[60];
 OneWire_t OW;
 uint8_t DS_ROM[8];
 float temperature;
+
+float distance;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -139,6 +142,9 @@ int main(void)
 		/* Start conversion on all sensors */
 		DS18B20_StartAll(&OW);
 	}
+
+// HCSR04 init
+	HCSR04_Init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -162,6 +168,8 @@ int main(void)
 				}
 			}
 		}
+
+		distance = HCSR04_Read();
 
 	  menu_actual();
 
@@ -336,10 +344,10 @@ void menu2()
 			sprintf(bufor, "Brightness: %u", brightness);
 			Ft_Gpu_CoCmd_Text(&host, 10, 160, 28, 0, bufor);
 
-			uint8_t tmp = (uint8_t) temperature;
-			uint8_t tmp2 = (uint8_t) (temperature*100)%100;
+			sprintf(bufor, "Dystans: %.2f cm", distance);
+			Ft_Gpu_CoCmd_Text(&host, 10, 120, 28, 0, bufor);
 
-			sprintf(bufor, "Temperatura: %d.%d *C", tmp, tmp2);
+			sprintf(bufor, "Temperatura: %.3f *C", temperature);
 			Ft_Gpu_CoCmd_Text(&host, 10, 100, 28, 0, bufor);
 
 			// BUTTON TEST
