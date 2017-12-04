@@ -35,8 +35,9 @@ uint8_t HCSR04_Init()
 
 float HCSR04_Read()
 {
-	uint32_t time, timeout;
-	float distance;
+	uint32_t timeout;
+	uint16_t time;
+	float distance = 0;
 
 	HAL_GPIO_WritePin(HCSR04_Trig_GPIO_Port, HCSR04_Trig_Pin, GPIO_PIN_RESET); // Trigger to low
 	HCSR04_Delay(2);
@@ -57,5 +58,6 @@ float HCSR04_Read()
 	time = _HCSR04_TIMER.Instance->CNT; // read us from timer
 
 	distance = (float)time / 2.0 * 0.0343;
-	return time;
+
+	return distance;
 }

@@ -1,7 +1,8 @@
 /**
   ******************************************************************************
-  * File Name          : main.h
-  * Description        : This file contains the common defines of the application
+  * File Name          : I2C.h
+  * Description        : This file provides code for the configuration
+  *                      of the I2C instances.
   ******************************************************************************
   ** This notice applies to any and all portions of this file
   * that are not between comment pairs USER CODE BEGIN and
@@ -36,46 +37,45 @@
   ******************************************************************************
   */
 /* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __MAIN_H
-#define __MAIN_H
-  /* Includes ------------------------------------------------------------------*/
+#ifndef __i2c_H
+#define __i2c_H
+#ifdef __cplusplus
+ extern "C" {
+#endif
+
+/* Includes ------------------------------------------------------------------*/
+#include "stm32f1xx_hal.h"
+#include "main.h"
 
 /* USER CODE BEGIN Includes */
 
 /* USER CODE END Includes */
 
-/* Private define ------------------------------------------------------------*/
-
-#define FT800_CS_Pin GPIO_PIN_0
-#define FT800_CS_GPIO_Port GPIOB
-#define FT800_INT_Pin GPIO_PIN_1
-#define FT800_INT_GPIO_Port GPIOB
-#define FT800_PD_Pin GPIO_PIN_10
-#define FT800_PD_GPIO_Port GPIOB
-#define DS18B20_Pin GPIO_PIN_11
-#define DS18B20_GPIO_Port GPIOB
-#define HCSR04_Echo_Pin GPIO_PIN_4
-#define HCSR04_Echo_GPIO_Port GPIOB
-#define DS3231_INT_Pin GPIO_PIN_5
-#define DS3231_INT_GPIO_Port GPIOB
-#define HCSR04_Trig_Pin GPIO_PIN_9
-#define HCSR04_Trig_GPIO_Port GPIOB
+extern I2C_HandleTypeDef hi2c1;
 
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */
 
-void _Error_Handler(char *, int);
+extern void _Error_Handler(char *, int);
 
-#define Error_Handler() _Error_Handler(__FILE__, __LINE__)
+void MX_I2C1_Init(void);
+
+/* USER CODE BEGIN Prototypes */
+
+/* USER CODE END Prototypes */
+
+#ifdef __cplusplus
+}
+#endif
+#endif /*__ i2c_H */
 
 /**
   * @}
-  */ 
+  */
 
 /**
   * @}
-*/ 
+  */
 
-#endif /* __MAIN_H */
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
