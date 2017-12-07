@@ -58,6 +58,7 @@
 #define HCSR04_Echo_GPIO_Port GPIOB
 #define DS3231_INT_Pin GPIO_PIN_5
 #define DS3231_INT_GPIO_Port GPIOB
+#define DS3231_INT_EXTI_IRQn EXTI9_5_IRQn
 #define HCSR04_Trig_Pin GPIO_PIN_9
 #define HCSR04_Trig_GPIO_Port GPIOB
 
