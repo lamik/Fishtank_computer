@@ -49,6 +49,7 @@
 #include "onewire.h"
 #include "ds18b20.h"
 #include "hcsr04.h"
+#include "ds3231.h"
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
@@ -145,8 +146,10 @@ int main(void)
 
 // HCSR04 init
 	HCSR04_Init();
-  /* USER CODE END 2 */
 
+// RTC Init
+  /* USER CODE END 2 */
+	DS3231_Init(&rtc, &hi2c1, DS3231_I2C_ADDR);
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
