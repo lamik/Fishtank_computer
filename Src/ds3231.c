@@ -5,12 +5,17 @@
  *  Created on: 7 gru 2017
  *      Author: Mateusz Salamon
  */
+
+#include <string.h>
+
 #include "main.h"
 #include "stm32f1xx_hal.h"
 #include "i2c.h"
 #include "gpio.h"
 
 #include "ds3231.h"
+
+char* week[7]={"Pon","Wto","Sro","Czw","Pia","Sob","Nie"};
 
 uint8_t bcd2dec(uint8_t val)
 {
@@ -45,13 +50,32 @@ uint8_t DS3231_Read_Register(DS3231_t *rtc, uint8_t reg)
 
 void DS3231_Set_Time(DS3231_t *rtc, uint8_t hour, uint8_t min, uint8_t sec)
 {
-	uint8_t TimeDate[3];
+	uint8_t Time[3];
 
-	TimeDate[0] = dec2bcd(sec);
-	TimeDate[1] = dec2bcd(min);
-	TimeDate[2] = dec2bcd(hour);
+	Time[0] = dec2bcd(sec);
+	Time[1] = dec2bcd(min);
+	Time[2] = dec2bcd(hour);
 
-	HAL_I2C_Mem_Write(rtc->i2c_h, DS3231_I2C_ADDR, DS3231_TIME_CAL_ADDR, 1, TimeDate, 3, 10);
+	HAL_I2C_Mem_Write(rtc->i2c_h, DS3231_I2C_ADDR, DS3231_TIME_CAL_ADDR, 1, Time, 3, 10);
+}
+
+void DS3231_Set_Date(DS3231_t *rtc, uint8_t mday, uint8_t mon, uint16_t year)
+{
+	uint8_t Date[3];
+
+	int Y,C,M,N,D;
+	M=1+(9+mon)%12;
+	Y=year-(M>10);
+	C=Y/100;
+	D=Y%100;
+	N=((13*M-1)/5+D+D/4+6*C+mday+5)%7;
+
+	Date[0]= (7+N)%7;
+	Date[1] = dec2bcd(mday);
+	Date[2] = dec2bcd(mon);
+	Date[3] = dec2bcd(year - 2000);
+
+	HAL_I2C_Mem_Write(rtc->i2c_h, DS3231_I2C_ADDR, 0x03, 1, Date, 4, 10);
 }
 
 void DS3231_Get_RTC(DS3231_t *rtc)
@@ -69,5 +93,6 @@ void DS3231_Get_RTC(DS3231_t *rtc)
 	rtc->mday = bcd2dec(TimeDate[4]);
 	rtc->mon = bcd2dec(TimeDate[5] & 0x1F); // Century is not useful
 	rtc->year = bcd2dec(TimeDate[6]) + 2000; // Will we back to 1900?
+	strcpy(rtc->week_day, week[rtc->wday]);
 }
 

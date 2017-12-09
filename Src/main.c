@@ -150,6 +150,7 @@ int main(void)
 // RTC Init
 	DS3231_Init(&rtc, &hi2c2, DS3231_I2C_ADDR);
 	DS3231_Set_Time(&rtc, 21,35,00);
+	DS3231_Set_Date(&rtc, 9, 12, 2017);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -275,10 +276,10 @@ void menu1()
 
 
 			Ft_App_WrCoCmd_Buffer(&host,COLOR_RGB(0x01,0x00,0x00));
-			sprintf(bufor, "Time: %2d:%2d:%2d", rtc.hour, rtc.min, rtc.sec);
+			sprintf(bufor, "%2d:%02d:%02d", rtc.hour, rtc.min, rtc.sec);
 			Ft_Gpu_CoCmd_Text(&host, 10, 100, 28, 0, bufor);
 
-			sprintf(bufor, "Date: %2d.%2d.%4d", rtc.mday, rtc.mon, rtc.year);
+			sprintf(bufor, "%s %2d.%02d.%04d", rtc.week_day, rtc.mday, rtc.mon, rtc.year);
 			Ft_Gpu_CoCmd_Text(&host, 10, 120, 28, 0, bufor);
 
 

@@ -39,6 +39,7 @@ typedef struct
     uint8_t min;         /* minutes */
     uint8_t hour;        /* hours */
     uint8_t mday;        /* day of the month */
+    char week_day[4];
     uint8_t mon;         /* month */
     int16_t year;        /* year */
 
@@ -54,6 +55,7 @@ void DS3231_Write_Register(DS3231_t *rtc, uint8_t reg, uint8_t val);
 uint8_t DS3231_Read_Register(DS3231_t *rtc, uint8_t reg);
 
 void DS3231_Set_Time(DS3231_t *rtc, uint8_t hour, uint8_t min, uint8_t sec);
+void DS3231_Set_Date(DS3231_t *rtc, uint8_t mday, uint8_t mon, uint16_t year);
 void DS3231_Get_RTC(DS3231_t *rtc);
 
 #endif /* DS3231_H_ */
