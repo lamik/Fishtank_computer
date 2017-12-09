@@ -53,7 +53,7 @@ void DS3231_Init(DS3231_t *rtc, I2C_HandleTypeDef *i2c, uint8_t rtc_addres);
 void DS3231_Write_Register(DS3231_t *rtc, uint8_t reg, uint8_t val);
 uint8_t DS3231_Read_Register(DS3231_t *rtc, uint8_t reg);
 
-void DS3231_Set_RTC(DS3231_t rtc);
+void DS3231_Set_Time(DS3231_t *rtc, uint8_t hour, uint8_t min, uint8_t sec);
 void DS3231_Get_RTC(DS3231_t *rtc);
 
 #endif /* DS3231_H_ */

@@ -149,6 +149,7 @@ int main(void)
 
 // RTC Init
 	DS3231_Init(&rtc, &hi2c2, DS3231_I2C_ADDR);
+	DS3231_Set_Time(&rtc, 21,35,00);
   /* USER CODE END 2 */
 
   /* Infinite loop */

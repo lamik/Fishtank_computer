@@ -17,6 +17,11 @@ uint8_t bcd2dec(uint8_t val)
     return ((val / 16 * 10) + (val % 16));
 }
 
+uint8_t dec2bcd(uint8_t val)
+{
+	return ((val / 10 * 16) + (val % 10));
+}
+
 void DS3231_Init(DS3231_t *rtc, I2C_HandleTypeDef *i2c, uint8_t rtc_addres)
 {
 	rtc->i2c_h = i2c;
@@ -38,10 +43,15 @@ uint8_t DS3231_Read_Register(DS3231_t *rtc, uint8_t reg)
 	return ret;
 }
 
-void DS3231_Set_RTC(DS3231_t rtc)
+void DS3231_Set_Time(DS3231_t *rtc, uint8_t hour, uint8_t min, uint8_t sec)
 {
+	uint8_t TimeDate[3];
 
+	TimeDate[0] = dec2bcd(sec);
+	TimeDate[1] = dec2bcd(min);
+	TimeDate[2] = dec2bcd(hour);
 
+	HAL_I2C_Mem_Write(rtc->i2c_h, DS3231_I2C_ADDR, DS3231_TIME_CAL_ADDR, 1, TimeDate, 3, 10);
 }
 
 void DS3231_Get_RTC(DS3231_t *rtc)
