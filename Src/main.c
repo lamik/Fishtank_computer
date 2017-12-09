@@ -120,7 +120,7 @@ int main(void)
   MX_SPI1_Init();
   MX_CRC_Init();
   MX_TIM3_Init();
-  MX_I2C1_Init();
+  MX_I2C2_Init();
 
   /* USER CODE BEGIN 2 */
   Ft_Gpu_Hal_Init_43CTP(&host);
@@ -148,8 +148,9 @@ int main(void)
 	HCSR04_Init();
 
 // RTC Init
+	DS3231_Init(&rtc, &hi2c2, DS3231_I2C_ADDR);
   /* USER CODE END 2 */
-	DS3231_Init(&rtc, &hi2c1, DS3231_I2C_ADDR);
+
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
@@ -171,7 +172,6 @@ int main(void)
 				}
 			}
 		}
-
 		distance = HCSR04_Read();
 
 	  menu_actual();

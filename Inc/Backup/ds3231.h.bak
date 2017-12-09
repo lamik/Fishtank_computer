@@ -9,7 +9,7 @@
 #define DS3231_H_
 
 // i2c slave address of the DS3231 chip
-#define DS3231_I2C_ADDR             0xD0
+#define DS3231_I2C_ADDR             0x68
 
 // timekeeping registers
 #define DS3231_TIME_CAL_ADDR        0x00
