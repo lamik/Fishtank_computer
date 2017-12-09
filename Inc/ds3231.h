@@ -35,6 +35,15 @@ typedef struct
 	I2C_HandleTypeDef *i2c_h; // I2C handler
 	uint8_t rtc_i2c_address;
 
+    uint8_t sec;         /* seconds */
+    uint8_t min;         /* minutes */
+    uint8_t hour;        /* hours */
+    uint8_t mday;        /* day of the month */
+    uint8_t mon;         /* month */
+    int16_t year;        /* year */
+
+    uint8_t wday;        /* day of the week */
+    uint8_t yday;        /* day in the year */
 }DS3231_t;
 
 DS3231_t rtc;
@@ -44,5 +53,7 @@ void DS3231_Init(DS3231_t *rtc, I2C_HandleTypeDef *i2c, uint8_t rtc_addres);
 void DS3231_Write_Register(DS3231_t *rtc, uint8_t reg, uint8_t val);
 uint8_t DS3231_Read_Register(DS3231_t *rtc, uint8_t reg);
 
+void DS3231_Set_RTC(DS3231_t rtc);
+void DS3231_Get_RTC(DS3231_t *rtc);
 
 #endif /* DS3231_H_ */
