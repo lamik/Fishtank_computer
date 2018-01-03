@@ -59,7 +59,6 @@
 Ft_Gpu_Hal_Context_t host;
 
 ft_char8_t StringArray[20];
-
 void(* menu_actual)(void);
 uint16_t touch_tag = 0;
 uint16_t x_data[] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20};
@@ -149,8 +148,6 @@ int main(void)
 
 // RTC Init
 	DS3231_Init(&rtc, &hi2c2, DS3231_I2C_ADDR);
-	DS3231_Set_Time(&rtc, 21,35,00);
-	DS3231_Set_Date(&rtc, 9, 12, 2017);
   /* USER CODE END 2 */
 
   /* Infinite loop */

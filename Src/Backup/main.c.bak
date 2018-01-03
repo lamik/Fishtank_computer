@@ -172,6 +172,7 @@ int main(void)
 				}
 			}
 		}
+		DS3231_Get_RTC(&rtc);
 		distance = HCSR04_Read();
 
 	  menu_actual();
@@ -270,6 +271,14 @@ void menu1()
 			Ft_Gpu_CoCmd_Text(&host, 10, 180, 28, 0, bufor);
 			sprintf(bufor, "Val: %u", value);
 			Ft_Gpu_CoCmd_Text(&host, 10, 200, 28, 0, bufor);
+
+
+			Ft_App_WrCoCmd_Buffer(&host,COLOR_RGB(0x01,0x00,0x00));
+			sprintf(bufor, "%2d:%02d:%02d", rtc.hour, rtc.min, rtc.sec);
+			Ft_Gpu_CoCmd_Text(&host, 10, 100, 28, 0, bufor);
+
+			sprintf(bufor, "%s %2d.%02d.%04d", rtc.week_day, rtc.mday, rtc.mon, rtc.year);
+			Ft_Gpu_CoCmd_Text(&host, 10, 120, 28, 0, bufor);
 
 
 			// BUTTON TEST
