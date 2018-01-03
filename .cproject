@@ -180,7 +180,7 @@
 	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
 	<storageModule moduleId="refreshScope" versionNumber="2">
 		<configuration configurationName="Debug">
-			<resource resourceType="PROJECT" workspacePath="/Fishtank_advanced_controller"/>
+			<resource resourceType="PROJECT" workspacePath="Fishtank_advanced_controller"/>
 		</configuration>
 		<configuration configurationName="Release"/>
 	</storageModule>

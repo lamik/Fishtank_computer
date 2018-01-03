@@ -9,7 +9,7 @@
   * inserted by the user or by software development tools
   * are owned by their respective copyright owners.
   *
-  * COPYRIGHT(c) 2017 STMicroelectronics
+  * COPYRIGHT(c) 2018 STMicroelectronics
   *
   * Redistribution and use in source and binary forms, with or without modification,
   * are permitted provided that the following conditions are met:
@@ -171,7 +171,7 @@ int main(void)
 				}
 			}
 		}
-		DS3231_Get_RTC(&rtc);
+//		DS3231_Get_RTC(&rtc);
 		distance = HCSR04_Read();
 
 	  menu_actual();
@@ -229,6 +229,14 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	if(GPIO_Pin == DS3231_INT_Pin)
+	{
+		DS3231_Get_RTC(&rtc);
+	}
+}
 
 int32_t map(int32_t value, int32_t inMin, int32_t inMax, int32_t outMin, int32_t outMax)
 {

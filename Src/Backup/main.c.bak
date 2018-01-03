@@ -9,7 +9,7 @@
   * inserted by the user or by software development tools
   * are owned by their respective copyright owners.
   *
-  * COPYRIGHT(c) 2017 STMicroelectronics
+  * COPYRIGHT(c) 2018 STMicroelectronics
   *
   * Redistribution and use in source and binary forms, with or without modification,
   * are permitted provided that the following conditions are met:
@@ -59,7 +59,6 @@
 Ft_Gpu_Hal_Context_t host;
 
 ft_char8_t StringArray[20];
-
 void(* menu_actual)(void);
 uint16_t touch_tag = 0;
 uint16_t x_data[] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20};
@@ -79,6 +78,7 @@ float distance;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+static void MX_NVIC_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
@@ -121,6 +121,9 @@ int main(void)
   MX_CRC_Init();
   MX_TIM3_Init();
   MX_I2C2_Init();
+
+  /* Initialize interrupts */
+  MX_NVIC_Init();
 
   /* USER CODE BEGIN 2 */
   Ft_Gpu_Hal_Init_43CTP(&host);
@@ -172,7 +175,7 @@ int main(void)
 				}
 			}
 		}
-		DS3231_Get_RTC(&rtc);
+//		DS3231_Get_RTC(&rtc);
 		distance = HCSR04_Read();
 
 	  menu_actual();
@@ -227,6 +230,15 @@ void SystemClock_Config(void)
 
   /* SysTick_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
+}
+
+/** NVIC Configuration
+*/
+static void MX_NVIC_Init(void)
+{
+  /* EXTI15_10_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 }
 
 /* USER CODE BEGIN 4 */

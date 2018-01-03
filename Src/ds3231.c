@@ -32,8 +32,9 @@ void DS3231_Init(DS3231_t *rtc, I2C_HandleTypeDef *i2c, uint8_t rtc_addres)
 	rtc->i2c_h = i2c;
 	rtc->rtc_i2c_address = rtc_addres;
 
-    DS3231_Write_Register(rtc, DS3231_CONTROL_ADDR, 0x04); // 1Hz square freq
-    HAL_NVIC_EnableIRQ(EXTI15_10_IRQn); // Enable INT PB5 pin EXTI9_5 interrupt
+    DS3231_Write_Register(rtc, DS3231_CONTROL_ADDR, 0x00); // 1Hz square freq
+    HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(EXTI15_10_IRQn); // Enable INT PB12 pin EXTI15_10 interrupt
 }
 
 void DS3231_Write_Register(DS3231_t *rtc, uint8_t reg, uint8_t val)
