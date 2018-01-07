@@ -1,0 +1,69 @@
+/*
+ * sd_card.c
+ *
+ *  Created on: 4 sty 2018
+ *      Author: Mateusz Salamon
+ */
+#include "main.h"
+#include "stm32f1xx_hal.h"
+#include "spi.h"
+#include "sd_card.h"
+
+
+/* Definitions for MMC/SDC command */
+#define CMD0	(0x40+0)	/* GO_IDLE_STATE */
+#define CMD1	(0x40+1)	/* SEND_OP_COND (MMC) */
+#define	ACMD41	(0xC0+41)	/* SEND_OP_COND (SDC) */
+#define CMD8	(0x40+8)	/* SEND_IF_COND */
+#define CMD16	(0x40+16)	/* SET_BLOCKLEN */
+#define CMD17	(0x40+17)	/* READ_SINGLE_BLOCK */
+#define CMD24	(0x40+24)	/* WRITE_BLOCK */
+#define CMD55	(0x40+55)	/* APP_CMD */
+#define CMD58	(0x40+58)	/* READ_OCR */
+
+#define SELECT()	HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_RESET)		/* MMC CS = L */
+#define	DESELECT()	HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_SET)
+
+static uint8_t send_cmd (uint8_t cmd, uint32_t arg)
+{
+	uint8_t n, res;
+
+
+	if (cmd & 0x80) {	/* ACMD<n> is the command sequense of CMD55-CMD<n> */
+		cmd &= 0x7F;
+		res = send_cmd(CMD55, 0);
+		if (res > 1) return res;
+	}
+
+	/* Select the card */
+	DESELECT();
+	HAL_SPI_Transmit(&hspi2, 0xFF, 1, 10);
+	SELECT();
+	HAL_SPI_Transmit(&hspi2, 0xFF, 1, 10);
+
+	/* Send a command packet */
+	HAL_SPI_Transmit(&hspi2, &cmd, 1, 10);
+	HAL_SPI_Transmit(&hspi2, (uint8_t)(arg >> 24), 1, 10);
+	HAL_SPI_Transmit(&hspi2, (uint8_t)(arg >> 16), 1, 10);
+	HAL_SPI_Transmit(&hspi2, (uint8_t)(arg >> 8), 1, 10);
+	HAL_SPI_Transmit(&hspi2, (uint8_t)arg, 1, 10);
+
+//	xmit_spi(cmd);						/* Start + Command index */
+//	xmit_spi((uint8_t)(arg >> 24));		/* Argument[31..24] */
+//	xmit_spi((uint8_t)(arg >> 16));		/* Argument[23..16] */
+//	xmit_spi((uint8_t)(arg >> 8));			/* Argument[15..8] */
+//	xmit_spi((uint8_t)arg);				/* Argument[7..0] */
+	n = 0x01;							/* Dummy CRC + Stop */
+	if (cmd == CMD0) n = 0x95;			/* Valid CRC for CMD0(0) */
+	if (cmd == CMD8) n = 0x87;			/* Valid CRC for CMD8(0x1AA) */
+	HAL_SPI_Transmit(&hspi2, &n, 1, 10);
+//	xmit_spi(n);
+
+	/* Receive a command response */
+	n = 10;								/* Wait for a valid response in timeout of 10 attempts */
+	do {
+		HAL_SPI_Receive(&hspi2, &res, 1, 10);
+	} while ((res & 0x80) && --n);
+
+	return res;			/* Return with the response value */
+}

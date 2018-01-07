@@ -97,10 +97,3 @@ void DS3231_Get_RTC(DS3231_t *rtc)
 	strcpy(rtc->week_day, week[rtc->wday]);
 }
 
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-{
-	if(GPIO_Pin == DS3231_INT_Pin)
-	{
-		DS3231_Get_RTC(&rtc);
-	}
-}
