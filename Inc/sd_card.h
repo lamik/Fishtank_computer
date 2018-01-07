@@ -42,10 +42,10 @@
 #define CMD58 0x3A
 /** SET_WR_BLK_ERASE_COUNT - Set the number of write blocks to be
  pre-erased before writing */
-#define ACMD23 0x17
+#define ACMD23 (0xC0 + 23)
 /** SD_SEND_OP_COMD - Sends host capacity support information and
  activates the card's initialization process */
-#define ACMD41 0x29
+#define ACMD41 (0xC0 + 41)
 //------------------------------------------------------------------------------
 /** status for card in the ready state */
 #define R1_READY_STATE  0x00
@@ -80,7 +80,5 @@ void SD_WaitUntilReady();
 uint8_t SD_Init();
 
 uint8_t SD_Command(uint8_t command, uint32_t arg);
-uint8_t SD_CardCommand(uint8_t command, uint32_t arg);
-uint8_t SD_CardAcmd(uint8_t cmd, uint32_t arg);
 
 #endif /* SD_CARD_H_ */

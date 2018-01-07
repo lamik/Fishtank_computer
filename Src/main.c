@@ -148,10 +148,10 @@ int main(void)
 	  {
 		  if(f_open(&MyFile, "STM32.TXT", FA_CREATE_ALWAYS | FA_WRITE) == FR_OK)
 		  {
-		  if(f_write(&MyFile, wtext, sizeof(wtext), (void *)&wbytes) == FR_OK);
-		  {
-		  f_close(&MyFile);
-		  }
+			  if(f_write(&MyFile, wtext, sizeof(wtext), (void *)&wbytes) == FR_OK)
+			  {
+				  f_close(&MyFile);
+			  }
 		  }
 	  }
   }
