@@ -64,8 +64,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include <string.h>
 #include "ff_gen_drv.h"
-#include "sd_card.h"
-#include "spi.h"
+#include "stm32_adafruit_sd.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
@@ -113,34 +112,14 @@ DSTATUS USER_initialize (
 )
 {
   /* USER CODE BEGIN INIT */
-	uint8_t ty;
     Stat = STA_NOINIT;
 
-    HAL_SPI_Transmit(&hspi2, 0xFF, 10, 10); //Set SD Card in native mode
+    /* Configure the uSD device */
+    if(BSP_SD_Init() == MSD_OK)
+    {
+      Stat &= ~STA_NOINIT;
+    }
 
-    ty = 0;
-    if (send_cmd(CMD0, 0) == 1) {			/* Enter Idle state */
-    		if (send_cmd(CMD8, 0x1AA) == 1) {	/* SDv2 */
-    			for (n = 0; n < 4; n++) ocr[n] = rcv_spi();		/* Get trailing return value of R7 resp */
-    			if (ocr[2] == 0x01 && ocr[3] == 0xAA) {				/* The card can work at vdd range of 2.7-3.6V */
-    				for (tmr = 12000; tmr && send_cmd(ACMD41, 1UL << 30); tmr--) ;	/* Wait for leaving idle state (ACMD41 with HCS bit) */
-    				if (tmr && send_cmd(CMD58, 0) == 0) {		/* Check CCS bit in the OCR */
-    					for (n = 0; n < 4; n++) ocr[n] = rcv_spi();
-    					ty = (ocr[0] & 0x40) ? CT_SD2 | CT_BLOCK : CT_SD2;	/* SDv2 (HC or SC) */
-    				}
-    			}
-    		} else {							/* SDv1 or MMCv3 */
-    			if (send_cmd(ACMD41, 0) <= 1) 	{
-    				ty = CT_SD1; cmd = ACMD41;	/* SDv1 */
-    			} else {
-    				ty = CT_MMC; cmd = CMD1;	/* MMCv3 */
-    			}
-    			for (tmr = 25000; tmr && send_cmd(cmd, 0); tmr--) ;	/* Wait for leaving idle state */
-    			if (!tmr || send_cmd(CMD16, 512) != 0)			/* Set R/W block length to 512 */
-    				ty = 0;
-    		}
-    	}
-    	CardType = ty;
     return Stat;
   /* USER CODE END INIT */
 }
@@ -156,6 +135,12 @@ DSTATUS USER_status (
 {
   /* USER CODE BEGIN STATUS */
     Stat = STA_NOINIT;
+
+    if(BSP_SD_GetCardState() == MSD_OK)
+    {
+      Stat &= ~STA_NOINIT;
+    }
+
     return Stat;
   /* USER CODE END STATUS */
 }
@@ -176,7 +161,24 @@ DRESULT USER_read (
 )
 {
   /* USER CODE BEGIN READ */
-    return RES_OK;
+	  DRESULT res = RES_ERROR;
+	  uint32_t timeout = 100000;
+
+	  if(BSP_SD_ReadBlocks((uint32_t*)buff,
+	                       (uint32_t) (sector),
+	                       count, SD_DATATIMEOUT) == MSD_OK)
+	  {
+	    while(BSP_SD_GetCardState()!= MSD_OK)
+	    {
+	      if (timeout-- == 0)
+	      {
+	        return RES_ERROR;
+	      }
+	    }
+	    res = RES_OK;
+	  }
+
+	  return res;
   /* USER CODE END READ */
 }
 
@@ -198,7 +200,24 @@ DRESULT USER_write (
 { 
   /* USER CODE BEGIN WRITE */
   /* USER CODE HERE */
-    return RES_OK;
+	  DRESULT res = RES_ERROR;
+	  uint32_t timeout = 100000;
+
+	  if(BSP_SD_WriteBlocks((uint32_t*)buff,
+	                        (uint32_t)(sector),
+	                        count, SD_DATATIMEOUT) == MSD_OK)
+	  {
+	    while(BSP_SD_GetCardState()!= MSD_OK)
+	    {
+	      if (timeout-- == 0)
+	      {
+	        return RES_ERROR;
+	      }
+	    }
+	    res = RES_OK;
+	  }
+
+	  return res;
   /* USER CODE END WRITE */
 }
 #endif /* _USE_WRITE == 1 */
@@ -218,8 +237,44 @@ DRESULT USER_ioctl (
 )
 {
   /* USER CODE BEGIN IOCTL */
-    DRESULT res = RES_ERROR;
-    return res;
+	  DRESULT res = RES_ERROR;
+	  BSP_SD_CardInfo CardInfo;
+
+	  if (Stat & STA_NOINIT) return RES_NOTRDY;
+
+	  switch (cmd)
+	  {
+	  /* Make sure that no pending write process */
+	  case CTRL_SYNC :
+	    res = RES_OK;
+	    break;
+
+	  /* Get number of sectors on the disk (DWORD) */
+	  case GET_SECTOR_COUNT :
+	    BSP_SD_GetCardInfo(&CardInfo);
+	    *(DWORD*)buff = CardInfo.LogBlockNbr;
+	    res = RES_OK;
+	    break;
+
+	  /* Get R/W sector size (WORD) */
+	  case GET_SECTOR_SIZE :
+	    BSP_SD_GetCardInfo(&CardInfo);
+	    *(WORD*)buff = CardInfo.LogBlockSize;
+	    res = RES_OK;
+	    break;
+
+	  /* Get erase block size in unit of sector (DWORD) */
+	  case GET_BLOCK_SIZE :
+	    BSP_SD_GetCardInfo(&CardInfo);
+	    *(DWORD*)buff = CardInfo.LogBlockSize;
+	    res = RES_OK;
+	    break;
+
+	  default:
+	    res = RES_PARERR;
+	  }
+
+	  return res;
   /* USER CODE END IOCTL */
 }
 #endif /* _USE_IOCTL == 1 */

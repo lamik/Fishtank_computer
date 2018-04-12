@@ -58,7 +58,11 @@
 #include "user_diskio.h" /* defines USER_Driver as external */
 
 /* USER CODE BEGIN Includes */
-
+#define SD_CARD_NOT_FORMATTED                    0
+#define SD_CARD_FILE_NOT_SUPPORTED               1
+#define SD_CARD_OPEN_FAIL                        2
+#define FATFS_NOT_MOUNTED                        3
+#define BSP_SD_INIT_FAILED                       4
 /* USER CODE END Includes */
 
 extern uint8_t retUSER; /* Return value for USER */

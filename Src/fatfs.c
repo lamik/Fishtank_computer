@@ -54,7 +54,7 @@ FATFS USERFatFS;    /* File system object for USER logical drive */
 FIL USERFile;       /* File object for USER */
 
 /* USER CODE BEGIN Variables */
-
+extern uint8_t sd_ok, fopen_ok;
 /* USER CODE END Variables */    
 
 void MX_FATFS_Init(void) 
@@ -63,7 +63,25 @@ void MX_FATFS_Init(void)
   retUSER = FATFS_LinkDriver(&USER_Driver, USERPath);
 
   /* USER CODE BEGIN Init */
-  /* additional user code for init */     
+
+  if(retUSER == 0)
+  {
+	    /* Initialize the SD mounted on adafruit 1.8" TFT shield */
+	    if(BSP_SD_Init() != MSD_OK)
+	    {
+	    	sd_ok = 1;
+	    }
+
+	    /* Check the mounted device */
+	    if(f_mount(&USERFatFS, (TCHAR const*)"/", 0) != FR_OK)
+	    {
+	    	fopen_ok = 1;
+	    }
+	    else
+	    {
+
+	    }
+  }
   /* USER CODE END Init */
 }
 

@@ -63,7 +63,25 @@ void MX_FATFS_Init(void)
   retUSER = FATFS_LinkDriver(&USER_Driver, USERPath);
 
   /* USER CODE BEGIN Init */
-  /* additional user code for init */     
+
+  if(retUSER == 0)
+  {
+	    /* Initialize the SD mounted on adafruit 1.8" TFT shield */
+	    if(BSP_SD_Init() != MSD_OK)
+	    {
+
+	    }
+
+	    /* Check the mounted device */
+	    if(f_mount(&USERFatFS, (TCHAR const*)"/", 0) != FR_OK)
+	    {
+
+	    }
+	    else
+	    {
+
+	    }
+  }
   /* USER CODE END Init */
 }
 

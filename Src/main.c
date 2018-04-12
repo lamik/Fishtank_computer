@@ -61,6 +61,15 @@
 #include "ds18b20.h"
 #include "hcsr04.h"
 #include "ds3231.h"
+#include "stm32_adafruit_sd.h"
+#include "images/images.h"
+
+#define SD_CARD_NOT_FORMATTED                    0
+#define SD_CARD_FILE_NOT_SUPPORTED               1
+#define SD_CARD_OPEN_FAIL                        2
+#define FATFS_NOT_MOUNTED                        3
+#define BSP_SD_INIT_FAILED                       4
+
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
@@ -79,12 +88,18 @@ uint16_t value = 50;
 uint16_t value2 = 230;
 uint8_t brightness = 128;
 char bufor[60];
+char file_buf[10];
 
 OneWire_t OW;
 uint8_t DS_ROM[8];
 float temperature;
 
 float distance;
+
+Ft_Bitmap_header_t *p_bmhdr;
+uint32_t ending_address;
+
+uint8_t sd_ok = 0, fopen_ok = 0, fmount_ok = 0, fwrite_ok = 0, fclose_ok = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -132,29 +147,13 @@ int main(void)
   MX_TIM3_Init();
   MX_I2C2_Init();
   MX_SPI2_Init();
-  MX_FATFS_Init();
 
   /* USER CODE BEGIN 2 */
-  FATFS sd_card;
-  FIL MyFile;
-  char sd_card_path[4];
+  MX_FATFS_Init();
 
   uint32_t wbytes; /* File write counts */
   uint8_t wtext[] = "text to write logical disk"; /* File write buffer */
 
-  if(FATFS_LinkDriver(&USER_Driver, sd_card_path) == 0)
-  {
-	  if(f_mount(&sd_card, (TCHAR const*)sd_card_path, 0) == FR_OK)
-	  {
-		  if(f_open(&MyFile, "STM32.TXT", FA_CREATE_ALWAYS | FA_WRITE) == FR_OK)
-		  {
-			  if(f_write(&MyFile, wtext, sizeof(wtext), (void *)&wbytes) == FR_OK)
-			  {
-				  f_close(&MyFile);
-			  }
-		  }
-	  }
-  }
   Ft_Gpu_Hal_Init_43CTP(&host);
   MX_SPI1_SpeedUp();	//Speed-up SPI for FT800
 
@@ -181,6 +180,41 @@ int main(void)
 
 // RTC Init
 	DS3231_Init(&rtc, &hi2c2, DS3231_I2C_ADDR);
+
+// Load Icon into FT800
+
+			Ft_Gpu_Hal_WrCmd32(&host,CMD_INFLATE);
+			//	specify starting address in graphics RAM
+				IMG_Icon_back_header->Address = 0L;
+				Ft_Gpu_Hal_WrCmd32(&host,IMG_Icon_back_header->Address);
+			//	write the .binh contents to the FT800 FIFO command buffer, filesize=
+				Ft_Gpu_Hal_WrCmdBuf(&host, IMG_Icon_back_data, 1492);
+				while(Ft_Gpu_Hal_Rd16(&host,REG_CMD_WRITE)!=Ft_Gpu_Hal_Rd16(&host, REG_CMD_READ));//Wait till the compression was done
+				uint16_t x = Ft_Gpu_Hal_Rd16(&host,REG_CMD_WRITE);
+				Ft_Gpu_CoCmd_GetPtr(&host,0);
+				IMG_Icon_settings_header->Address = Ft_Gpu_Hal_Rd32(&host,(RAM_CMD+x+4));
+
+				Ft_Gpu_Hal_WrCmd32(&host,CMD_INFLATE);
+			//	specify starting address in graphics RAM
+				Ft_Gpu_Hal_WrCmd32(&host,IMG_Icon_settings_header->Address);
+			//	write the .binh contents to the FT800 FIFO command buffer, filesize=
+				Ft_Gpu_Hal_WrCmdBuf(&host, IMG_Icon_settings_data, 1486);
+				while(Ft_Gpu_Hal_Rd16(&host,REG_CMD_WRITE)!=Ft_Gpu_Hal_Rd16(&host, REG_CMD_READ));//Wait till the compression was done
+				x = Ft_Gpu_Hal_Rd16(&host,REG_CMD_WRITE);
+				Ft_Gpu_CoCmd_GetPtr(&host,0);
+				IMG_Phial_header->Address = Ft_Gpu_Hal_Rd32(&host,(RAM_CMD + x + 4));
+
+				Ft_Gpu_Hal_WrCmd32(&host,CMD_INFLATE);
+			//	specify starting address in graphics RAM
+				Ft_Gpu_Hal_WrCmd32(&host,IMG_Phial_header->Address);
+			//	write the .binh contents to the FT800 FIFO command buffer, filesize=
+				Ft_Gpu_Hal_WrCmdBuf(&host, IMG_Phial_data, 1992);
+				while(Ft_Gpu_Hal_Rd16(&host,REG_CMD_WRITE)!=Ft_Gpu_Hal_Rd16(&host, REG_CMD_READ));//Wait till the compression was done
+				x = Ft_Gpu_Hal_Rd16(&host,REG_CMD_WRITE);
+				Ft_Gpu_CoCmd_GetPtr(&host,0);
+				Ft_Gpu_Hal_Rd32(&host,(RAM_CMD + x + 4));
+
+				uint8_t i = 0;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -190,7 +224,6 @@ int main(void)
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
-
 		/* Check if connected device is DS18B20 */
 		if (DS18B20_Is(DS_ROM)) {
 			/* Everything is done */
@@ -201,13 +234,27 @@ int main(void)
 
 					/* Start again on all sensors */
 					DS18B20_StartAll(&OW);
+
 				}
 			}
 		}
 //		DS3231_Get_RTC(&rtc);
 		distance = HCSR04_Read();
 
-	  menu_actual();
+		UINT tmp;
+		if(FR_OK != f_open(&USERFile, "test.txt", FA_OPEN_ALWAYS | FA_READ | FA_WRITE))
+			if(FR_OK != f_lseek(&USERFile, f_size(&USERFile)))
+					fopen_ok = 1;
+
+		char buf_tmp[10];
+		memset(buf_tmp, 0x00, sizeof(buf_tmp));
+		sprintf(buf_tmp, "TEST%d ", i++);
+
+		if(FR_OK != f_write(&USERFile, buf_tmp, 10, &tmp))
+				fwrite_ok = 1;
+		f_close(&USERFile);
+
+			  menu_actual();
 
   }
   /* USER CODE END 3 */
@@ -293,7 +340,7 @@ void menu1()
 	Ft_Gpu_CoCmd_Dlstart(&host);
 
 			/*Setting first screen*/
-			Ft_App_WrCoCmd_Buffer(&host,CLEAR_COLOR_RGB(0xff,0xff,0xff));//white color
+			Ft_App_WrCoCmd_Buffer(&host,CLEAR_COLOR_RGB(0xFF,0xFF,0xFF));//white color
 			Ft_App_WrCoCmd_Buffer(&host,CLEAR(1,1,1));//clear screen
 
 			track_data = Ft_Gpu_Hal_Rd32(&host, REG_TRACKER);
@@ -301,7 +348,7 @@ void menu1()
 				value = (track_data >> 16);
 
 
-			Ft_App_WrCoCmd_Buffer(&host,COLOR_RGB(0xF0,0xFF,0x20));//red color
+			Ft_App_WrCoCmd_Buffer(&host,COLOR_RGB(0xFF,0xFF,0x20));//red color
 			Ft_Gpu_CoCmd_FgColor(&host, COLOR_RGB(0x00, 0x06, 0x70));
 			Ft_App_WrCoCmd_Buffer(&host,TAG(10));
 			Ft_Gpu_CoCmd_Slider(&host, 50, 240, 400, 20, 0, value, 0xFFFFFF);
@@ -320,6 +367,54 @@ void menu1()
 			sprintf(bufor, "%s %2d.%02d.%04d", rtc.week_day, rtc.mday, rtc.mon, rtc.year);
 			Ft_Gpu_CoCmd_Text(&host, 10, 120, 28, 0, bufor);
 
+			if(!sd_ok)
+			{
+				sprintf(bufor, "SD OK");
+				Ft_Gpu_CoCmd_Text(&host, 10, 140, 28, 0, bufor);
+			}
+			else
+			{
+				sprintf(bufor, "SD ERROR");
+				Ft_Gpu_CoCmd_Text(&host, 10, 140, 28, 0, bufor);
+			}
+
+			if(!fmount_ok)
+			{
+				sprintf(bufor, "fmount OK");
+				Ft_Gpu_CoCmd_Text(&host, 10, 160, 28, 0, bufor);
+			}
+			else
+			{
+				sprintf(bufor, "fmount ERROR");
+				Ft_Gpu_CoCmd_Text(&host, 10, 160, 28, 0, bufor);
+			}
+
+
+			if(!fopen_ok)
+			{
+				sprintf(bufor, "fopen OK");
+				Ft_Gpu_CoCmd_Text(&host, 100, 140, 28, 0, bufor);
+			}
+			else
+			{
+				sprintf(bufor, "fopen ERROR");
+				Ft_Gpu_CoCmd_Text(&host, 100, 140, 28, 0, bufor);
+			}
+
+			if(!fwrite_ok)
+			{
+				sprintf(bufor, "fwrite OK");
+				Ft_Gpu_CoCmd_Text(&host, 120, 160, 28, 0, bufor);
+			}
+			else
+			{
+				sprintf(bufor, "fwrite ERROR");
+				Ft_Gpu_CoCmd_Text(&host, 120, 160, 28, 0, bufor);
+			}
+
+
+			Ft_Gpu_CoCmd_Text(&host, 100, 200, 28, 0, file_buf);
+
 
 			// BUTTON TEST
 			Ft_App_WrCoCmd_Buffer(&host,TAG(11));
@@ -334,6 +429,57 @@ void menu1()
 			Ft_Gpu_CoCmd_Button(&host, 275,10, 160,60, 27,0, "Brightness");
 			//
 
+			// icon setting
+//
+
+//			//specify the starting address of the bitmap in graphics RAM
+
+			Ft_App_WrCoCmd_Buffer(&host,TAG(13));
+			Ft_App_WrCoCmd_Buffer(&host, BITMAP_SOURCE(0L));
+			p_bmhdr = (Ft_Bitmap_header_t *)&IMG_Icon_settings_header[0];
+			Ft_App_WrCoCmd_Buffer(&host,BITMAP_LAYOUT(p_bmhdr->Format, p_bmhdr->Stride, p_bmhdr->Height));
+			Ft_App_WrCoCmd_Buffer(&host, BITMAP_SIZE(NEAREST, BORDER, BORDER, p_bmhdr->Width, p_bmhdr->Height));
+			Ft_App_WrCoCmd_Buffer(&host,BEGIN(BITMAPS));
+			Ft_App_WrCoCmd_Buffer(&host,VERTEX2II(200, 100, 0, 0));
+			// icon back
+
+			Ft_App_WrCoCmd_Buffer(&host,TAG(14));
+			Ft_App_WrCoCmd_Buffer(&host, BITMAP_SOURCE(IMG_Icon_settings_header->Address));
+			p_bmhdr = (Ft_Bitmap_header_t *)&IMG_Icon_back_header[0];
+			Ft_App_WrCoCmd_Buffer(&host,BITMAP_LAYOUT(p_bmhdr->Format, p_bmhdr->Stride, p_bmhdr->Height));
+			Ft_App_WrCoCmd_Buffer(&host, BITMAP_SIZE(NEAREST, BORDER, BORDER, p_bmhdr->Width, p_bmhdr->Height));
+			Ft_App_WrCoCmd_Buffer(&host,BEGIN(BITMAPS));
+			Ft_App_WrCoCmd_Buffer(&host,VERTEX2II(250, 100, 0, 0));
+
+			Ft_App_WrCoCmd_Buffer(&host, BITMAP_SOURCE(IMG_Phial_header->Address));
+			p_bmhdr = (Ft_Bitmap_header_t *)&IMG_Phial_header[0];
+			Ft_App_WrCoCmd_Buffer(&host,BITMAP_LAYOUT(p_bmhdr->Format, p_bmhdr->Stride, p_bmhdr->Height));
+			Ft_App_WrCoCmd_Buffer(&host, BITMAP_SIZE(NEAREST, BORDER, BORDER, p_bmhdr->Width, p_bmhdr->Height));
+			Ft_App_WrCoCmd_Buffer(&host,BEGIN(BITMAPS));
+			Ft_App_WrCoCmd_Buffer(&host,VERTEX2II(300, 100, 0, 0));
+
+			uint8_t level = map(value, 0, 65535, 0, 100);
+			if(level < 30)
+			{
+				Ft_App_WrCoCmd_Buffer(&host, COLOR_RGB(0xFF, 0x00, 0x00));
+			}
+			else if(level < 45)
+			{
+				Ft_App_WrCoCmd_Buffer(&host, COLOR_RGB(0xFF, 0xA5, 0x00));
+			}
+			else
+			{
+				Ft_App_WrCoCmd_Buffer(&host, COLOR_RGB(0x00, 0xFF, 0x00));
+			}
+			Ft_App_WrCoCmd_Buffer(&host, SCISSOR_XY(317, 109 + map(value, 0, 65535, 90, 0)));
+			Ft_App_WrCoCmd_Buffer(&host, SCISSOR_SIZE(16, 90 - map(value, 0, 65535, 90, 0)));
+			Ft_App_WrCoCmd_Buffer(&host, LINE_WIDTH(8 * 16));
+			Ft_App_WrCoCmd_Buffer(&host, BEGIN(LINES));
+			Ft_App_WrCoCmd_Buffer(&host, VERTEX2F(325 * 16, 105 * 16));
+			Ft_App_WrCoCmd_Buffer(&host, VERTEX2F(325 * 16, 186 * 16));
+
+
+
 			touch_tag = Ft_Gpu_Hal_Rd8(&host,REG_TOUCH_TAG);
 			if(touch_tag == 11)
 			{
@@ -347,6 +493,18 @@ void menu1()
 				Ft_Gpu_CoCmd_Track(&host, 50, 240, 400, 20, 9);
 				Ft_Gpu_CoCmd_Track(&host, 50, 240, 0, 0, 10);
 				while(touch_tag == 12)touch_tag = Ft_Gpu_Hal_Rd8(&host,REG_TOUCH_TAG);;
+			}
+
+			if(touch_tag == 13)
+			{
+				Ft_App_WrCoCmd_Buffer(&host,COLOR_RGB(0x00,0x80,0x00));
+				Ft_Gpu_CoCmd_Text(&host,(LCD_WIDTH/2), LCD_HEIGHT*2/5, 28, OPT_CENTERX, "Ustawienia");
+			}
+
+			if(touch_tag == 14)
+			{
+				Ft_App_WrCoCmd_Buffer(&host,COLOR_RGB(0x00,0x80,0x00));
+				Ft_Gpu_CoCmd_Text(&host,(LCD_WIDTH/2), LCD_HEIGHT*2/5, 28, OPT_CENTERX, "Back");
 			}
 
 			Ft_App_WrCoCmd_Buffer(&host,DISPLAY());
@@ -461,6 +619,7 @@ void test_screen(void)
 	/* Wait till coprocessor completes the operation */
 	Ft_Gpu_Hal_WaitCmdfifo_empty(&host);
 }
+
 /* USER CODE END 4 */
 
 /**

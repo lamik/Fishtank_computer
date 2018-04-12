@@ -64,8 +64,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include <string.h>
 #include "ff_gen_drv.h"
-#include "sd_card.h"
-#include "spi.h"
+#include "stm32_adafruit_sd.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
@@ -113,61 +112,15 @@ DSTATUS USER_initialize (
 )
 {
   /* USER CODE BEGIN INIT */
-	BYTE n, cmd, ty, ocr[4], tmp;
-	WORD tmr;
+    Stat = STA_NOINIT;
 
-	hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_128;
-	HAL_SPI_Init(&hspi2);
-#if _WRITE_FUNC
-	if (MMC_SEL) disk_writep(0, 0);		/* Finalize write process if it is in progress */
-#endif
-	SD_DeselectCard();
-	tmp = 0xFF;
-	for (n = 100; n; n--) HAL_SPI_Transmit(&hspi2, &tmp, 1, 10);	/* Dummy clocks */
+    /* Configure the uSD device */
+    if(BSP_SD_Init() == MSD_OK)
+    {
+      Stat &= ~STA_NOINIT;
+    }
 
-
-	ty = 0;
-	if (SD_Command(CMD0, 0) == 1) {			/* Enter Idle state */
-
-		if (SD_Command(CMD8, 0x1AA) == 1)
-		{	/* SDv2 */
-			HAL_SPI_Receive(&hspi2, ocr, 4, 10);	/* Get trailing return value of R7 resp */
-
-			if (ocr[2] == 0x01 && ocr[3] == 0xAA) {				/* The card can work at vdd range of 2.7-3.6V */
-
-				while(SD_Command(ACMD41, 1UL << 30) != R1_READY_STATE)
-				{
-
-				}
-//				for (tmr = 12000; tmr && SD_Command(ACMD41, 1UL << 30); tmr--) ;	/* Wait for leaving idle state (ACMD41 with HCS bit) */
-
-				if (tmr && SD_Command(CMD58, 0) == 0)
-				{		/* Check CCS bit in the OCR */
-					HAL_SPI_Receive(&hspi2, ocr, 4, 10);
-					ty = (ocr[0] & 0x40) ? CT_SD2 | CT_BLOCK : CT_SD2;	/* SDv2 (HC or SC) */
-				}
-			}
-		}
-		else
-		{
-			/* SDv1 or MMCv3 */
-			if (SD_Command(ACMD41, 0) <= 1) 	{
-				ty = CT_SD1; cmd = ACMD41;	/* SDv1 */
-			} else {
-				ty = CT_MMC; cmd = CMD1;	/* MMCv3 */
-			}
-			for (tmr = 25000; tmr && SD_Command(cmd, 0); tmr--) ;	/* Wait for leaving idle state */
-			if (!tmr || SD_Command(CMD16, 512) != 0)			/* Set R/W block length to 512 */
-				ty = 0;
-		}
-	}
-	CardType = ty;
-	SD_DeselectCard();
-
-	hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
-	HAL_SPI_Init(&hspi2);
-
-	return ty ? 0 : STA_NOINIT;
+    return Stat;
   /* USER CODE END INIT */
 }
 
@@ -182,6 +135,12 @@ DSTATUS USER_status (
 {
   /* USER CODE BEGIN STATUS */
     Stat = STA_NOINIT;
+
+    if(BSP_SD_GetCardState() == MSD_OK)
+    {
+      Stat &= ~STA_NOINIT;
+    }
+
     return Stat;
   /* USER CODE END STATUS */
 }
@@ -190,63 +149,36 @@ DSTATUS USER_status (
   * @brief  Reads Sector(s) 
   * @param  pdrv: Physical drive number (0..)
   * @param  *buff: Data buffer to store read data
-  * @param  sector: Sector address (sector)
+  * @param  sector: Sector address (LBA)
   * @param  count: Number of sectors to read (1..128)
   * @retval DRESULT: Operation result
   */
 DRESULT USER_read (
 	BYTE pdrv,      /* Physical drive nmuber to identify the drive */
 	BYTE *buff,     /* Data buffer to store read data */
-	DWORD sector,   /* Sector address in sector */
+	DWORD sector,   /* Sector address in LBA */
 	UINT count      /* Number of sectors to read */
 )
 {
   /* USER CODE BEGIN READ */
-	DRESULT res;
-	BYTE rc, tmp;
-	WORD bc;
+	  DRESULT res = RES_ERROR;
+	  uint32_t timeout = 100000;
 
+	  if(BSP_SD_ReadBlocks((uint32_t*)buff,
+	                       (uint32_t) (sector),
+	                       count, SD_DATATIMEOUT) == MSD_OK)
+	  {
+	    while(BSP_SD_GetCardState()!= MSD_OK)
+	    {
+	      if (timeout-- == 0)
+	      {
+	        return RES_ERROR;
+	      }
+	    }
+	    res = RES_OK;
+	  }
 
-	if (!(CardType & CT_BLOCK)) sector *= 512;		/* Convert to byte address if needed */
-
-	res = RES_ERROR;
-	if (SD_Command(CMD17, sector) == 0) {		/* READ_SINGLE_BLOCK */
-
-		bc = 30000;
-		do {							/* Wait for data packet in timeout of 100ms */
-//			rc = rcv_spi();
-			HAL_SPI_Receive(&hspi2, &rc, 1, 10);
-		} while (rc == 0xFF && --bc);
-
-		if (rc == 0xFE) {				/* A data packet arrived */
-//			bc = 514 - ofs - count;
-			bc = 514 - count;
-
-//			/* Skip leading bytes */
-//			if (ofs) {
-//				do rcv_spi(); while (--ofs);
-//			}
-
-			/* Receive a part of the sector */
-			if (buff) {	/* Store data to the memory */
-				do
-				{
-					HAL_SPI_Receive(&hspi2, &tmp, 1, 10);
-					*buff++ = tmp;
-				}
-				while (--count);
-			}
-
-			/* Skip trailing bytes and CRC */
-			do HAL_SPI_Receive(&hspi2, &tmp, 1, 10); while (--bc);
-
-			res = RES_OK;
-		}
-	}
-
-	SD_DeselectCard();
-
-	return res;
+	  return res;
   /* USER CODE END READ */
 }
 
@@ -254,7 +186,7 @@ DRESULT USER_read (
   * @brief  Writes Sector(s)  
   * @param  pdrv: Physical drive number (0..)
   * @param  *buff: Data to be written
-  * @param  sector: Sector address (sector)
+  * @param  sector: Sector address (LBA)
   * @param  count: Number of sectors to write (1..128)
   * @retval DRESULT: Operation result
   */
@@ -262,49 +194,30 @@ DRESULT USER_read (
 DRESULT USER_write (
 	BYTE pdrv,          /* Physical drive nmuber to identify the drive */
 	const BYTE *buff,   /* Data to be written */
-	DWORD sector,       /* Sector address in sector */
+	DWORD sector,       /* Sector address in LBA */
 	UINT count          /* Number of sectors to write */
 )
 { 
   /* USER CODE BEGIN WRITE */
   /* USER CODE HERE */
-	DRESULT res;
-	WORD bc;
-	static WORD wc;
-	BYTE tmp;
+	  DRESULT res = RES_ERROR;
+	  uint32_t timeout = 100000;
 
+	  if(BSP_SD_WriteBlocks((uint32_t*)buff,
+	                        (uint32_t)(sector),
+	                        count, SD_DATATIMEOUT) == MSD_OK)
+	  {
+	    while(BSP_SD_GetCardState()!= MSD_OK)
+	    {
+	      if (timeout-- == 0)
+	      {
+	        return RES_ERROR;
+	      }
+	    }
+	    res = RES_OK;
+	  }
 
-	res = RES_ERROR;
-
-	if (buff) {		/* Send data bytes */
-		bc = (WORD)count;
-		while (bc && wc) {		/* Send data bytes to the card */
-			HAL_SPI_Transmit(&hspi2, buff++, 1, 10);
-//			xmit_spi(*buff++);
-			wc--; bc--;
-		}
-		res = RES_OK;
-	} else {
-		if (count) {	/* Initiate sector write process */
-			if (!(CardType & CT_BLOCK)) count *= 512;	/* Convert to byte address if needed */
-			if (SD_Command(CMD24, count) == 0) {			/* WRITE_SINGLE_BLOCK */
-				HAL_SPI_Transmit(&hspi2, 0xFF, 1, 10); HAL_SPI_Transmit(&hspi2, 0xFF, 1, 10);		/* Data block header */
-				wc = 512;							/* Set byte counter */
-				res = RES_OK;
-			}
-		} else {	/* Finalize sector write process */
-			bc = wc + 2;
-			while (bc--) HAL_SPI_Transmit(&hspi2, 0x00, 1, 10);	/* Fill left bytes and CRC with zeros */
-			HAL_SPI_Receive(&hspi2, &tmp, 1, 10);
-			if ((tmp & 0x1F) == 0x05) {	/* Receive data resp and wait for end of write process in timeout of 300ms */
-				for (bc = 65000; tmp != 0xFF && bc; bc--) HAL_SPI_Receive(&hspi2, &tmp, 1, 10);;	/* Wait ready */
-				if (bc) res = RES_OK;
-			}
-			SD_DeselectCard();
-		}
-	}
-
-	return res;
+	  return res;
   /* USER CODE END WRITE */
 }
 #endif /* _USE_WRITE == 1 */
@@ -324,8 +237,44 @@ DRESULT USER_ioctl (
 )
 {
   /* USER CODE BEGIN IOCTL */
-    DRESULT res = RES_ERROR;
-    return res;
+	  DRESULT res = RES_ERROR;
+	  BSP_SD_CardInfo CardInfo;
+
+	  if (Stat & STA_NOINIT) return RES_NOTRDY;
+
+	  switch (cmd)
+	  {
+	  /* Make sure that no pending write process */
+	  case CTRL_SYNC :
+	    res = RES_OK;
+	    break;
+
+	  /* Get number of sectors on the disk (DWORD) */
+	  case GET_SECTOR_COUNT :
+	    BSP_SD_GetCardInfo(&CardInfo);
+	    *(DWORD*)buff = CardInfo.LogBlockNbr;
+	    res = RES_OK;
+	    break;
+
+	  /* Get R/W sector size (WORD) */
+	  case GET_SECTOR_SIZE :
+	    BSP_SD_GetCardInfo(&CardInfo);
+	    *(WORD*)buff = CardInfo.LogBlockSize;
+	    res = RES_OK;
+	    break;
+
+	  /* Get erase block size in unit of sector (DWORD) */
+	  case GET_BLOCK_SIZE :
+	    BSP_SD_GetCardInfo(&CardInfo);
+	    *(DWORD*)buff = CardInfo.LogBlockSize;
+	    res = RES_OK;
+	    break;
+
+	  default:
+	    res = RES_PARERR;
+	  }
+
+	  return res;
   /* USER CODE END IOCTL */
 }
 #endif /* _USE_IOCTL == 1 */
